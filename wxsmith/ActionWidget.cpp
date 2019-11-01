@@ -1,6 +1,7 @@
 #include "ActionWidget.h"
+#include <cstdio>
+#include <stdexcept>
 #include <wx/string.h>
-
 
 #include <Python.h>
 
@@ -63,6 +64,7 @@ ActionTextCtrl::ActionTextCtrl(wxWindow *parent, string name, string text,
         id, wxEVT_COMMAND_TEXT_UPDATED,
         (wxObjectEventFunction)&ActionTextCtrl::onUpdate
     );
+    this->type = type;
     label = new wxStaticText(
                 parent, wxNewId(), wxString(text), wxDefaultPosition,
                 wxDefaultSize, 0, wxString(name + "Label")
@@ -81,14 +83,33 @@ void ActionTextCtrl::onUpdate(wxCommandEvent& event) {
     ActionTextCtrl *txt = (ActionTextCtrl*)event.GetEventObject();
 
     string s1 = txt->name;
-    string s2 = txt->GetValue().ToStdString();
     char cstr1[s1.size() + 1];
-    char cstr2[s2.size() + 1];
     copy(s1.begin(), s1.end(), cstr1);
-    copy(s2.begin(), s2.end(), cstr2);
     cstr1[s1.size()] = '\0';
-    cstr2[s2.size()] = '\0';
-
+    string s2 = txt->GetValue().ToStdString();
+    char *cstr2;
+    
+    try {
+        if(txt->type == ACTION_INPUT_INT) {
+            cstr2 = new char[s2.size() + 1];
+            int i = stoi(s2);
+            sprintf(cstr2, "%d", i);
+        }
+        else if(txt->type == ACTION_INPUT_FLOAT) {
+            cstr2 = new char[s2.size() + 5];
+            float f = stof(s2);
+            sprintf(cstr2, "%.3f", f);
+        }
+        else {
+            cstr2 = new char[s2.size() + 1];
+            copy(s2.begin(), s2.end(), cstr2);
+            cstr2[s2.size()] = '\0';
+        }
+    }
+    catch(logic_error e) {
+        return;
+    }
+    
     PyObject *pArgs;
     pArgs = PyTuple_New(2);
     PyObject *pValue1 = PyString_FromString(cstr1);
@@ -96,4 +117,5 @@ void ActionTextCtrl::onUpdate(wxCommandEvent& event) {
     PyTuple_SetItem(pArgs, 0, pValue1);
     PyTuple_SetItem(pArgs, 1, pValue2);
     PyObject_CallObject(pTextBox, pArgs);
+    delete[] cstr2;
 }

@@ -56,6 +56,12 @@ class WidgetClasses(IntEnum):
     TEXTBOX = 1
     SLIDER  = 2
 
+class InputType(IntEnum):
+    CHAR   = 0
+    INT    = 1
+    FLOAT  = 2
+    STRING = 3
+
 
 cmdLine = ""
 cmdQueue = []
@@ -77,19 +83,27 @@ def processCmd(s):
             cls = -1
             if args[0] == "button":
                 cls = WidgetClasses.BUTTON.value
-            elif args[0] == "textbox":
-                cls = WidgetClasses.TEXTBOX.value
-            elif args[0] == "slider":
-                cls = WidgetClasses.SLIDER.value
-            else:
-                print("No such widget %s exists" % args[0])
-            
-            if len(args) == 3:
                 ret = (Commands.ADD_WIDGET.value,
                        cls, args[1], args[2])
-            elif len(args) >= 4:
+            elif args[0] == "textbox":
+                cls = WidgetClasses.TEXTBOX.value
+                t = -1
+                if args[3] == "int":
+                    t = InputType.INT.value
+                elif args[3] == "float":
+                    t = InputType.FLOAT.value
+                elif args[3] == "string":
+                    t = InputType.STRING.value
+                
+                if t != -1:
+                    ret = (Commands.ADD_WIDGET.value,
+                           cls, args[1], args[2], t)
+            elif args[0] == "slider":
+                cls = WidgetClasses.SLIDER.value
                 ret = (Commands.ADD_WIDGET.value,
-                       cls, args[1], args[2], args[3])
+                       cls, args[1], args[2])
+            else:
+                print("No such widget %s exists" % args[0])
         else:
             print("Usage: add-widget <class> <name> <display text> <options>")
     else:

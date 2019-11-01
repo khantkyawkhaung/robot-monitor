@@ -57,4 +57,11 @@ class ActionTextCtrl: public ActionWidget,
 };
 
 
+enum WidgetType {
+    WIDGET_BUTTON,
+    WIDGET_TEXTBOX,
+    WIDGET_SLIDER
+};
+
+
 #endif // ACTIONWIDGET_H_INCLUDED

@@ -153,7 +153,7 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
     Py_Initialize();
     PyRun_SimpleString("import sys\n"
                        "sys.path.append('./python')");
-    pName = PyString_FromString("RobotMonitorComm");
+    pName = PyString_FromString("MonitorCommand");
     pModule = PyImport_Import(pName);
     pDict = PyModule_GetDict(pModule);
     pSendCommand = PyDict_GetItemString(pDict, "sendCommand");
@@ -172,24 +172,22 @@ RobotMonitorFrame::~RobotMonitorFrame()
 #include <iostream>
 using namespace std;
 
-#define COMMAND_DEFAULT          0
-#define COMMAND_PRINT            1
-#define COMMAND_SET              2
-#define COMMAND_ADD_WIDGET       3
-#define COMMAND_PLOT_INIT        4
-#define COMMAND_PLOT             5
-#define COMMAND_MODEL_INIT       6
-#define COMMAND_MODEL_COORDINATE 7
-#define COMMAND_MODEL_ROTATION   8
-
-#define WIDGET_BUTTON  0
-#define WIDGET_TEXTBOX 1
-#define WIDGET_SLIDER  2
+enum MonitorCommand {
+    COMMAND_DEFAULT,
+    COMMAND_PRINT,
+    COMMAND_SET,
+    COMMAND_ADD_WIDGET,
+    COMMAND_PLOT_INIT,
+    COMMAND_PLOT,
+    COMMAND_MODEL_INIT,
+    COMMAND_MODEL_COORDINATE,
+    COMMAND_MODEL_ROTATION
+};
 
 void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
     PyObject *pTuple = PyObject_CallObject(pReadIdle, NULL);
     PyObject *pCmd = PyTuple_GetItem(pTuple, 0);
-    long cmd = PyLong_AsLong(pCmd);
+    MonitorCommand cmd = static_cast<MonitorCommand>(PyLong_AsLong(pCmd));
 
     if(cmd == COMMAND_PRINT) {
         PyObject *pValue = PyTuple_GetItem(pTuple, 1);
@@ -207,14 +205,21 @@ void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
         PyObject *pCls = PyTuple_GetItem(pTuple, 1);
         PyObject *pName = PyTuple_GetItem(pTuple, 2);
         PyObject *pText = PyTuple_GetItem(pTuple, 3);
-        long cls = PyLong_AsLong(pCls);
+        WidgetType cls = static_cast<WidgetType>(PyLong_AsLong(pCls));
         char *name = PyString_AsString(pName);
         char *text = PyString_AsString(pText);
         ActionWidget *widget;
-        if(cls == WIDGET_BUTTON)
+        switch(cls) {
+          case WIDGET_BUTTON:
             widget = new ActionButton(this, name, text);
-        else if(cls == WIDGET_TEXTBOX)
-            widget = new ActionTextCtrl(this, name, text, ACTION_INPUT_STRING);
+            break;
+          case WIDGET_TEXTBOX:
+            PyObject *pInput = PyTuple_GetItem(pTuple, 4);
+            long ld = PyLong_AsLong(pInput);
+            ActionInputType inputType = static_cast<ActionInputType>(ld);
+            widget = new ActionTextCtrl(this, name, text, inputType);
+            break;
+        }
         widget->addTo(actionBox);
     }
     Update();
