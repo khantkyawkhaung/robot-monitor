@@ -1,6 +1,5 @@
+import MonitorPort
 from enum import IntEnum
-
-msg = ""
 
 
 def splitCommandArgs(s):
@@ -30,14 +29,13 @@ def splitCommandArgs(s):
 
 
 def sendCommand(cmd):
-    global msg
-    msg += cmd
+    MonitorPort.write(cmd)
 
 def sendClickCommand(name):
-    print("Clicked %s" % name)
+    MonitorPort.write("<<?call %s?>>" % name)
 
 def updateTextBox(name, value):
-    print("Set %s %s" % (name, value))
+    MonitorPort.write("<<?set %s %s?>>" % (name, value))
 
 
 class Commands(IntEnum):
@@ -66,7 +64,7 @@ class InputType(IntEnum):
 cmdLine = ""
 cmdQueue = []
 
-def processCmd(s):
+def processCommand(s):
     ret = (Commands.DEFAULT.value, None)
     if not s:
         return ret
@@ -111,10 +109,10 @@ def processCmd(s):
     return ret
 
 
-def onIdle():
+def getCommand():
     global cmdLine, cmdQueue, isCmd
     
-    global msg
+    msg = MonitorPort.read()
     
     if not msg:
         return (Commands.DEFAULT.value, None)
@@ -141,7 +139,7 @@ def onIdle():
             break
     
     if len(cmdQueue) > 0:
-        return processCmd(cmdQueue.pop(0))
+        return processCommand(cmdQueue.pop(0))
     elif msg:
         ret = (Commands.PRINT.value, msg[0:])
         msg = ""
