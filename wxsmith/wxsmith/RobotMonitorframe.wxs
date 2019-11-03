@@ -102,10 +102,44 @@
 				</object>
 			</object>
 			<object class="wxMenu" variable="Menu3" member="yes">
-				<label>&amp;Tool</label>
-				<object class="wxMenuItem" name="idMenuPort" variable="MenuItem3" member="yes">
+				<label>&amp;Tools</label>
+				<object class="wxMenu" name="idMenuPorts" variable="MenuItem3" member="yes">
 					<label>Port</label>
 					<help>Show available serial ports</help>
+					<enabled>0</enabled>
+					<object class="wxMenuItem" name="idUnknownPort" variable="MenuItem11" member="yes">
+						<label>COM?</label>
+						<enabled>0</enabled>
+					</object>
+				</object>
+				<object class="wxMenu" name="idMenuBaudrate" variable="MenuItem4" member="yes">
+					<label>Baudrate</label>
+					<help>Configure baudrate</help>
+					<object class="wxMenuItem" name="idBR9600" variable="MenuItem5" member="yes">
+						<label>9600</label>
+						<radio>1</radio>
+					</object>
+					<object class="wxMenuItem" name="idBR19200" variable="MenuItem6" member="yes">
+						<label>19200</label>
+						<radio>1</radio>
+					</object>
+					<object class="wxMenuItem" name="idBR38400" variable="MenuItem7" member="yes">
+						<label>38400</label>
+						<radio>1</radio>
+					</object>
+					<object class="wxMenuItem" name="idBR76800" variable="MenuItem8" member="yes">
+						<label>76800</label>
+						<radio>1</radio>
+					</object>
+					<object class="wxMenuItem" name="idBR153600" variable="MenuItem9" member="yes">
+						<label>153600</label>
+						<radio>1</radio>
+					</object>
+				</object>
+				<object class="wxMenuItem" name="idMenuConnect" variable="MenuItem10" member="yes">
+					<label>Connect</label>
+					<help>Connect to a USB device</help>
+					<enabled>0</enabled>
 				</object>
 			</object>
 			<object class="wxMenu" variable="Menu2" member="no">

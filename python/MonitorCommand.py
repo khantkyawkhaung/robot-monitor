@@ -28,31 +28,23 @@ def splitCommandArgs(s):
     return tokens
 
 
-def sendCommand(cmd):
-    MonitorPort.write(cmd)
-
-def sendClickCommand(name):
-    MonitorPort.write("<<?call %s?>>" % name)
-
-def updateTextBox(name, value):
-    MonitorPort.write("<<?set %s %s?>>" % (name, value))
-
-
 class Commands(IntEnum):
     DEFAULT          = 0
-    PRINT            = 1
-    SET              = 2
-    ADD_WIDGET       = 3
-    PLOT_INIT        = 4
-    PLOT             = 5
-    MODEL_INIT       = 6
-    MODEL_COORDINATE = 7
-    MODEL_ROTATION   = 8
+    RESET            = 1
+    PRINT            = 2
+    SET              = 3
+    ADD_WIDGET       = 4
+    PLOT_INIT        = 5
+    PLOT             = 6
+    MODEL_INIT       = 7
+    MODEL_COORDINATE = 8
+    MODEL_ROTATION   = 9
 
 class WidgetClasses(IntEnum):
-    BUTTON  = 0
-    TEXTBOX = 1
-    SLIDER  = 2
+    DEFAULT = 0
+    BUTTON  = 1
+    TEXTCTRL = 2
+    SLIDER  = 3
 
 class InputType(IntEnum):
     CHAR   = 0
@@ -83,8 +75,8 @@ def processCommand(s):
                 cls = WidgetClasses.BUTTON.value
                 ret = (Commands.ADD_WIDGET.value,
                        cls, args[1], args[2])
-            elif args[0] == "textbox":
-                cls = WidgetClasses.TEXTBOX.value
+            elif args[0] == "textctrl":
+                cls = WidgetClasses.TEXTCTRL.value
                 t = -1
                 if args[3] == "int":
                     t = InputType.INT.value

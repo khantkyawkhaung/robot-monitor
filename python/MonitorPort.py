@@ -3,6 +3,7 @@ import serial.tools.list_ports
 from serial.serialutil import SerialException
 
 ser = serial.Serial()
+ser.timeout = 0.2
 
 def listPorts():
     ports = serial.tools.list_ports.comports()
@@ -35,7 +36,6 @@ def connect(p, b):
         ser.open()
     except SerialException as e:
         pass
-    write(b'<<?init-monitor?>>')
 
 def isConnected():
     return ser.is_open

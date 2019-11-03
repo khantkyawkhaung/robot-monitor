@@ -10,6 +10,14 @@
 #include <string>
 
 
+enum WidgetType {
+    WIDGET_DEFAULT,
+    WIDGET_BUTTON,
+    WIDGET_TEXTCTRL,
+    WIDGET_SLIDER
+};
+
+
 class ActionWidget;
 extern wxStaticBoxSizer* actionBox;
 
@@ -17,11 +25,14 @@ class ActionWidget {
   public:
     ActionWidget(wxWindow*, std::string);
     virtual void addTo(wxSizer*);
+    WidgetType widgetType = WIDGET_DEFAULT;
   protected:
     wxWindow *parent;
     std::string name;
     int id;
 };
+
+void setActionWidgetsEnabled(bool);
 
 
 class ActionButton: public ActionWidget,
@@ -52,15 +63,10 @@ class ActionTextCtrl: public ActionWidget,
   private:
     wxBoxSizer *box;
     wxStaticText *label;
-    ActionInputType type;
+    ActionInputType inputType;
     void onUpdate(wxCommandEvent&);
-};
 
-
-enum WidgetType {
-    WIDGET_BUTTON,
-    WIDGET_TEXTBOX,
-    WIDGET_SLIDER
+    friend void setActionWidgetsEnabled(bool);
 };
 
 

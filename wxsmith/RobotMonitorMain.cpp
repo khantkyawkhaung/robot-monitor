@@ -18,13 +18,16 @@
 
 #include <Python.h>
 
-PyObject *pName, *pModule, *pDict;
-PyObject *pSendCommand, *pClickCommand, *pTextBox, *pReadIdle;
+PyObject *pName1, *pModule1, *pDict1;
+PyObject *pName2, *pModule2, *pDict2;
+PyObject *pGetCommand, *pWrite, *pListPorts, *pConnect, *pIsConnected;
 
 void pyClean() {
     Py_Finalize();
-    Py_DECREF(pModule);
-    Py_DECREF(pName);
+    Py_DECREF(pModule1);
+    Py_DECREF(pName1);
+    Py_DECREF(pModule2);
+    Py_DECREF(pName2);
 }
 
 
@@ -67,7 +70,15 @@ const long RobotMonitorFrame::idConsoleText = wxNewId();
 const long RobotMonitorFrame::idCommandText = wxNewId();
 const long RobotMonitorFrame::idCommandButton = wxNewId();
 const long RobotMonitorFrame::idMenuQuit = wxNewId();
-const long RobotMonitorFrame::idMenuPort = wxNewId();
+const long RobotMonitorFrame::idUnknownPort = wxNewId();
+const long RobotMonitorFrame::idMenuPorts = wxNewId();
+const long RobotMonitorFrame::idBR9600 = wxNewId();
+const long RobotMonitorFrame::idBR19200 = wxNewId();
+const long RobotMonitorFrame::idBR38400 = wxNewId();
+const long RobotMonitorFrame::idBR76800 = wxNewId();
+const long RobotMonitorFrame::idBR153600 = wxNewId();
+const long RobotMonitorFrame::idMenuBaudrate = wxNewId();
+const long RobotMonitorFrame::idMenuConnect = wxNewId();
 const long RobotMonitorFrame::idMenuAbout = wxNewId();
 //*)
 
@@ -125,9 +136,27 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
     Menu1->Append(MenuItem1);
     MenuBar1->Append(Menu1, _("&File"));
     Menu3 = new wxMenu();
-    MenuItem3 = new wxMenuItem(Menu3, idMenuPort, _("Port"), _("Show available serial ports"), wxITEM_NORMAL);
-    Menu3->Append(MenuItem3);
-    MenuBar1->Append(Menu3, _("&Tool"));
+    MenuItem3 = new wxMenu();
+    MenuItem11 = new wxMenuItem(MenuItem3, idUnknownPort, _("COM\?"), wxEmptyString, wxITEM_NORMAL);
+    MenuItem3->Append(MenuItem11);
+    MenuItem11->Enable(false);
+    Menu3->Append(idMenuPorts, _("Port"), MenuItem3, _("Show available serial ports"))->Enable(false);
+    MenuItem4 = new wxMenu();
+    MenuItem5 = new wxMenuItem(MenuItem4, idBR9600, _("9600"), wxEmptyString, wxITEM_RADIO);
+    MenuItem4->Append(MenuItem5);
+    MenuItem6 = new wxMenuItem(MenuItem4, idBR19200, _("19200"), wxEmptyString, wxITEM_RADIO);
+    MenuItem4->Append(MenuItem6);
+    MenuItem7 = new wxMenuItem(MenuItem4, idBR38400, _("38400"), wxEmptyString, wxITEM_RADIO);
+    MenuItem4->Append(MenuItem7);
+    MenuItem8 = new wxMenuItem(MenuItem4, idBR76800, _("76800"), wxEmptyString, wxITEM_RADIO);
+    MenuItem4->Append(MenuItem8);
+    MenuItem9 = new wxMenuItem(MenuItem4, idBR153600, _("153600"), wxEmptyString, wxITEM_RADIO);
+    MenuItem4->Append(MenuItem9);
+    Menu3->Append(idMenuBaudrate, _("Baudrate"), MenuItem4, _("Configure baudrate"));
+    MenuItem10 = new wxMenuItem(Menu3, idMenuConnect, _("Connect"), _("Connect to a USB device"), wxITEM_NORMAL);
+    Menu3->Append(MenuItem10);
+    MenuItem10->Enable(false);
+    MenuBar1->Append(Menu3, _("&Tools"));
     Menu2 = new wxMenu();
     MenuItem2 = new wxMenuItem(Menu2, idMenuAbout, _("About\tF1"), _("Show info about this application"), wxITEM_NORMAL);
     Menu2->Append(MenuItem2);
@@ -141,11 +170,35 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
     Connect(idMenuAbout,wxEVT_COMMAND_MENU_SELECTED,(wxObjectEventFunction)&RobotMonitorFrame::OnAbout);
     //*)
 
+    MenuTools = Menu3;
+    MenuPorts = MenuItem3;
+    MenuPorts->Destroy(idUnknownPort);
+    MenuBaudrate = MenuItem4;
+    MenuConnect = MenuItem10;
+
     Connect(idCommandText, wxEVT_TEXT_ENTER,
             wxCommandEventHandler(RobotMonitorFrame::OnCommandButtonClick));
     Connect(wxID_ANY, wxEVT_IDLE,
             wxIdleEventHandler(RobotMonitorFrame::OnIdle));
 
+    MenuBaudrate->Check(idBR9600, true);
+    wxCommandEvent event_tmp = wxCommandEvent(wxEVT_NULL, idBR9600);
+    OnBaudrateSelection(event_tmp);
+    Connect(idBR9600, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(RobotMonitorFrame::OnBaudrateSelection));
+    Connect(idBR19200, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(RobotMonitorFrame::OnBaudrateSelection));
+    Connect(idBR38400, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(RobotMonitorFrame::OnBaudrateSelection));
+    Connect(idBR76800, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(RobotMonitorFrame::OnBaudrateSelection));
+    Connect(idBR153600, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(RobotMonitorFrame::OnBaudrateSelection));
+
+    Connect(idMenuConnect, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(RobotMonitorFrame::OnConnect));
+
+    AttributeText->Enable(false);
     AttributeText->SetEditable(false);
     ConsoleText->SetEditable(false);
     actionBox = ActionBox;
@@ -153,13 +206,17 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
     Py_Initialize();
     PyRun_SimpleString("import sys\n"
                        "sys.path.append('./python')");
-    pName = PyString_FromString("MonitorCommand");
-    pModule = PyImport_Import(pName);
-    pDict = PyModule_GetDict(pModule);
-    pSendCommand = PyDict_GetItemString(pDict, "sendCommand");
-    pClickCommand = PyDict_GetItemString(pDict, "sendClickCommand");
-    pTextBox = PyDict_GetItemString(pDict, "updateTextBox");
-    pReadIdle = PyDict_GetItemString(pDict, "onIdle");
+    pName1 = PyString_FromString("MonitorCommand");
+    pModule1 = PyImport_Import(pName1);
+    pDict1 = PyModule_GetDict(pModule1);
+    pGetCommand = PyDict_GetItemString(pDict1, "getCommand");
+    pName2 = PyString_FromString("MonitorPort");
+    pModule2 = PyImport_Import(pName2);
+    pDict2 = PyModule_GetDict(pModule2);
+    pWrite = PyDict_GetItemString(pDict2, "write");
+    pListPorts = PyDict_GetItemString(pDict2, "listPorts");
+    pConnect = PyDict_GetItemString(pDict2, "connect");
+    pIsConnected = PyDict_GetItemString(pDict2, "isConnected");
     atexit(pyClean);
 }
 
@@ -169,11 +226,38 @@ RobotMonitorFrame::~RobotMonitorFrame()
     //*)
 }
 
-#include <iostream>
-using namespace std;
+static std::vector<wxMenuItem*> ports;
+std::string port = "";
+int baudrate;
+bool connected = false;
+
+void RobotMonitorFrame::OnPortSelection(wxCommandEvent& event) {
+    wxMenuItem *item = MenuPorts->FindItem(event.GetId());
+    port = item->GetItemLabelText().ToStdString();
+    MenuTools->SetLabel(idMenuPorts, wxString("Port: " + port));
+}
+
+void RobotMonitorFrame::OnBaudrateSelection(wxCommandEvent& event) {
+    wxMenuItem *item = MenuBaudrate->FindItem(event.GetId());
+    std::string str = item->GetItemLabelText().ToStdString();
+    baudrate = std::stoi(str);
+    MenuTools->SetLabel(idMenuBaudrate, wxString("Baudrate: " + str));
+}
+
+void RobotMonitorFrame::OnConnect(wxCommandEvent& event) {
+    PyObject *pArgs;
+    pArgs = PyTuple_New(2);
+    PyObject *pPort = PyString_FromString(port.c_str());
+    PyTuple_SetItem(pArgs, 0, pPort);
+    PyObject *pBaudrate = PyLong_FromLong(baudrate);
+    PyTuple_SetItem(pArgs, 1, pBaudrate);
+    PyObject_CallObject(pConnect, pArgs);
+}
+
 
 enum MonitorCommand {
     COMMAND_DEFAULT,
+    COMMAND_RESET,
     COMMAND_PRINT,
     COMMAND_SET,
     COMMAND_ADD_WIDGET,
@@ -184,8 +268,86 @@ enum MonitorCommand {
     COMMAND_MODEL_ROTATION
 };
 
+
 void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
-    PyObject *pTuple = PyObject_CallObject(pReadIdle, NULL);
+    // Port list
+    PyObject *pPortList = PyObject_CallObject(pListPorts, NULL);
+    Py_ssize_t portCount = PyList_Size(pPortList);
+    if(portCount != ports.size()) {
+        for(auto it=ports.begin(); it!=ports.end(); it++) {
+            MenuPorts->Destroy(*it);
+        }
+        ports.clear();
+        bool portStillExists = false;
+        for(Py_ssize_t i=0; i<portCount; i++) {
+            PyObject *pValue = PyList_GetItem(pPortList, i);
+            int id = wxNewId();
+            wxString str = wxString(PyString_AsString(pValue));
+            wxMenuItem *menuItem = new wxMenuItem(
+                MenuPorts,
+                id,
+                str,
+                wxEmptyString,
+                wxITEM_RADIO
+            );
+            ports.push_back(menuItem);
+            MenuPorts->Append(menuItem);
+            Connect(
+                id,
+                wxEVT_MENU,
+                wxCommandEventHandler(RobotMonitorFrame::OnPortSelection)
+            );
+            if(portStillExists)
+                continue;
+            if(port.compare(str.ToStdString()) == 0) {
+                portStillExists = true;
+                MenuPorts->Check(id, true);
+                wxCommandEvent event_tmp = wxCommandEvent(wxEVT_NULL, id);
+                OnPortSelection(event_tmp);
+            }
+        }
+        if(portStillExists == false && portCount > 0) {
+            int id = ports[0]->GetId();
+            MenuPorts->Check(id, true);
+            wxCommandEvent event_tmp = wxCommandEvent(wxEVT_NULL, id);
+            OnPortSelection(event_tmp);
+        }
+        if(portCount > 0) {
+            MenuTools->Enable(idMenuPorts, true);
+            MenuTools->Enable(idMenuConnect, true);
+        }
+        else {
+            MenuTools->SetLabel(idMenuPorts, _("Port"));
+            MenuTools->Enable(idMenuPorts, false);
+            MenuTools->Enable(idMenuConnect, false);
+        }
+    }
+
+    // Port connection status
+    PyObject *pConnected = PyObject_CallObject(pIsConnected, NULL);
+    bool b = PyObject_IsTrue(pConnected);
+    if(b) {
+        if(connected == false) {
+            AttributeText->Enable(true);
+            ClearAttributes();
+            ConsoleText->Clear();
+            actionBox->Clear();
+        }
+    }
+    else {
+        if(connected == true) {
+            setActionWidgetsEnabled(false);
+            AttributeText->Enable(false);
+        }
+    }
+    connected = b;
+
+    Update();
+
+    // Monitor command process
+    if(connected == false)
+        return;
+    PyObject *pTuple = PyObject_CallObject(pGetCommand, NULL);
     PyObject *pCmd = PyTuple_GetItem(pTuple, 0);
     MonitorCommand cmd = static_cast<MonitorCommand>(PyLong_AsLong(pCmd));
 
@@ -213,7 +375,7 @@ void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
           case WIDGET_BUTTON:
             widget = new ActionButton(this, name, text);
             break;
-          case WIDGET_TEXTBOX:
+          case WIDGET_TEXTCTRL:
             PyObject *pInput = PyTuple_GetItem(pTuple, 4);
             long ld = PyLong_AsLong(pInput);
             ActionInputType inputType = static_cast<ActionInputType>(ld);
@@ -222,7 +384,6 @@ void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
         }
         widget->addTo(actionBox);
     }
-    Update();
 }
 
 void RobotMonitorFrame::ConsoleLog(const char *str) {
@@ -246,7 +407,7 @@ void RobotMonitorFrame::SetAttribute(const char *name, const char *str) {
         auto p = std::pair<std::string, std::string>(name, str);
         attributes.push_back(p);
     }
-    
+
     AttributeText->Clear();
     for(auto it = attributes.begin(); it != attributes.end(); it++) {
         AttributeText->AppendText(wxString(it->first));
@@ -272,9 +433,9 @@ void RobotMonitorFrame::OnCommandButtonClick(wxCommandEvent& event)
 
     PyObject *pArgs;
     pArgs = PyTuple_New(1);
-    PyObject *pValue = PyString_FromString(cstr);
+    PyObject *pValue = PyBytes_FromString(cstr);
     PyTuple_SetItem(pArgs, 0, pValue);
-    PyObject_CallObject(pSendCommand, pArgs);
+    PyObject_CallObject(pWrite, pArgs);
 
     CommandText->Clear();
 }
