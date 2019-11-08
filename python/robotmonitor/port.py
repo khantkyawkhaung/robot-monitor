@@ -1,9 +1,12 @@
+import robotmonitor.logging
+from robotmonitor.logging import ErrorLevel
+
 import serial
 import serial.tools.list_ports
 from serial.serialutil import SerialException
 
+
 ser = serial.Serial()
-ser.timeout = 0.2
 
 def listPorts():
     ports = serial.tools.list_ports.comports()
@@ -16,16 +19,18 @@ def read():
     s = ""
     if ser.is_open:
         try:
-            s = ser.readline()
-        except SerialException as e:
+            s = ser.read(ser.in_waiting)
+        except Exception as e:
+            robotmonitor.logging.log(str(e), ErrorLevel.FATAL)
             ser.close()
     return s
 
-def write(msg):
+def write(s):
     if ser.is_open:
         try:
-            ser.write(msg)
+            ser.write(s.encode())
         except SerialException as e:
+            robotmonitor.logging.log(str(e), ErrorLevel.FATAL)
             ser.close()
 
 def connect(p, b):
@@ -35,7 +40,8 @@ def connect(p, b):
     try:
         ser.open()
     except SerialException as e:
-        pass
+        robotmonitor.logging.log(str(e), ErrorLevel.FATAL)
 
 def isConnected():
     return ser.is_open
+

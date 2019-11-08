@@ -65,7 +65,7 @@ void ActionButton::onClick(wxCommandEvent& event) {
 
     PyObject *pArgs;
     pArgs = PyTuple_New(1);
-    PyObject *pValue = PyBytes_FromString(cstr);
+    PyObject *pValue = PyString_FromString(cstr);
     PyTuple_SetItem(pArgs, 0, pValue);
     PyObject_CallObject(pWrite, pArgs);
 }
@@ -133,7 +133,7 @@ void ActionTextCtrl::onUpdate(wxCommandEvent& event) {
 
     PyObject *pArgs;
     pArgs = PyTuple_New(1);
-    PyObject *pValue = PyBytes_FromString(cstr);
+    PyObject *pValue = PyString_FromString(cstr);
     PyTuple_SetItem(pArgs, 0, pValue);
     PyObject_CallObject(pWrite, pArgs);
 

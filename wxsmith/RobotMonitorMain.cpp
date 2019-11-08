@@ -10,13 +10,22 @@
 #include "ActionWidget.h"
 #include "RobotMonitorMain.h"
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
+#include <wx/colour.h>
 #include <wx/msgdlg.h>
 
 
 #include <Python.h>
+
+#define LOGFILE_PATH "data/python_log"
+char logfile_path[256];
+std::streampos logfile_pos = 0;
+extern char pwd[];
 
 PyObject *pName1, *pModule1, *pDict1;
 PyObject *pName2, *pModule2, *pDict2;
@@ -28,6 +37,36 @@ void pyClean() {
     Py_DECREF(pName1);
     Py_DECREF(pModule2);
     Py_DECREF(pName2);
+}
+
+void pyInit() {
+    Py_Initialize();
+    PyRun_SimpleString("import sys\n"
+                       "sys.path.append('./python')");
+    
+    char pyCode[256];
+    sprintf(logfile_path, "%s/%s", pwd, LOGFILE_PATH);
+    sprintf(
+        pyCode,
+        "import robotmonitor.logging\n"
+        "robotmonitor.logging.setLogFile('%s')",
+        logfile_path
+    );
+    PyRun_SimpleString(pyCode);
+    
+    pName1 = PyString_FromString("robotmonitor.command");
+    pModule1 = PyImport_Import(pName1);
+    pDict1 = PyModule_GetDict(pModule1);
+    pGetCommand = PyDict_GetItemString(pDict1, "getCommand");
+    pName2 = PyString_FromString("robotmonitor.port");
+    pModule2 = PyImport_Import(pName2);
+    pDict2 = PyModule_GetDict(pModule2);
+    pWrite = PyDict_GetItemString(pDict2, "write");
+    pListPorts = PyDict_GetItemString(pDict2, "listPorts");
+    pConnect = PyDict_GetItemString(pDict2, "connect");
+    pIsConnected = PyDict_GetItemString(pDict2, "isConnected");
+    
+    atexit(pyClean);
 }
 
 
@@ -178,8 +217,6 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
 
     Connect(idCommandText, wxEVT_TEXT_ENTER,
             wxCommandEventHandler(RobotMonitorFrame::OnCommandButtonClick));
-    Connect(wxID_ANY, wxEVT_IDLE,
-            wxIdleEventHandler(RobotMonitorFrame::OnIdle));
 
     MenuBaudrate->Check(idBR9600, true);
     wxCommandEvent event_tmp = wxCommandEvent(wxEVT_NULL, idBR9600);
@@ -202,22 +239,13 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
     AttributeText->SetEditable(false);
     ConsoleText->SetEditable(false);
     actionBox = ActionBox;
+    
+    pyInit();
 
-    Py_Initialize();
-    PyRun_SimpleString("import sys\n"
-                       "sys.path.append('./python')");
-    pName1 = PyString_FromString("MonitorCommand");
-    pModule1 = PyImport_Import(pName1);
-    pDict1 = PyModule_GetDict(pModule1);
-    pGetCommand = PyDict_GetItemString(pDict1, "getCommand");
-    pName2 = PyString_FromString("MonitorPort");
-    pModule2 = PyImport_Import(pName2);
-    pDict2 = PyModule_GetDict(pModule2);
-    pWrite = PyDict_GetItemString(pDict2, "write");
-    pListPorts = PyDict_GetItemString(pDict2, "listPorts");
-    pConnect = PyDict_GetItemString(pDict2, "connect");
-    pIsConnected = PyDict_GetItemString(pDict2, "isConnected");
-    atexit(pyClean);
+    wxTimer *timer = new wxTimer(this);
+    Connect(wxID_ANY, wxEVT_TIMER,
+            wxTimerEventHandler(RobotMonitorFrame::OnTimer));
+    timer->Start(10);
 }
 
 RobotMonitorFrame::~RobotMonitorFrame()
@@ -269,7 +297,28 @@ enum MonitorCommand {
 };
 
 
-void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
+void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
+    // Read log
+    std::ifstream logfile(logfile_path);
+    if(logfile.is_open()) {
+        std::string line;
+        logfile.seekg(logfile_pos);
+        while(std::getline(logfile, line)) {
+            logfile_pos = logfile.tellg();
+            line += "\n";
+            char cstr[line.size()+1];
+            strcpy(cstr, line.c_str());
+            char *label = strtok(cstr, " ");
+            if(strcmp(label, "WARNING:") == 0)
+                ConsoleText->SetDefaultStyle(wxTextAttr(*wxYELLOW));
+            else if(strcmp(label, "ERROR:") == 0)
+                ConsoleText->SetDefaultStyle(wxTextAttr(*wxRED));
+            ConsoleText->AppendText(wxString(line));
+            ConsoleText->SetDefaultStyle(wxTextAttr(*wxBLACK));
+        }
+        logfile.close();
+    }
+
     // Port list
     PyObject *pPortList = PyObject_CallObject(pListPorts, NULL);
     Py_ssize_t portCount = PyList_Size(pPortList);
@@ -336,53 +385,55 @@ void RobotMonitorFrame::OnIdle(wxIdleEvent& event) {
     }
     else {
         if(connected == true) {
-            setActionWidgetsEnabled(false);
             AttributeText->Enable(false);
+            setActionWidgetsEnabled(false);
         }
     }
     connected = b;
 
-    Update();
-
     // Monitor command process
     if(connected == false)
         return;
-    PyObject *pTuple = PyObject_CallObject(pGetCommand, NULL);
-    PyObject *pCmd = PyTuple_GetItem(pTuple, 0);
-    MonitorCommand cmd = static_cast<MonitorCommand>(PyLong_AsLong(pCmd));
+    PyObject *pList = PyObject_CallObject(pGetCommand, NULL);
+    Py_ssize_t cmdCount = PyList_Size(pList);
+    for(Py_ssize_t i=0; i<cmdCount; i++) {
+        PyObject *pTuple = PyList_GetItem(pList, i);
+        PyObject *pCmd = PyTuple_GetItem(pTuple, 0);
+        MonitorCommand cmd = static_cast<MonitorCommand>(PyLong_AsLong(pCmd));
 
-    if(cmd == COMMAND_PRINT) {
-        PyObject *pValue = PyTuple_GetItem(pTuple, 1);
-        char *cstr = PyString_AsString(pValue);
-        ConsoleLog(cstr);
-    }
-    else if(cmd == COMMAND_SET) {
-        PyObject *pName = PyTuple_GetItem(pTuple, 1);
-        PyObject *pValue = PyTuple_GetItem(pTuple, 2);
-        char *name = PyString_AsString(pName);
-        char *value = PyString_AsString(pValue);
-        SetAttribute(name, value);
-    }
-    else if(cmd == COMMAND_ADD_WIDGET) {
-        PyObject *pCls = PyTuple_GetItem(pTuple, 1);
-        PyObject *pName = PyTuple_GetItem(pTuple, 2);
-        PyObject *pText = PyTuple_GetItem(pTuple, 3);
-        WidgetType cls = static_cast<WidgetType>(PyLong_AsLong(pCls));
-        char *name = PyString_AsString(pName);
-        char *text = PyString_AsString(pText);
-        ActionWidget *widget;
-        switch(cls) {
-          case WIDGET_BUTTON:
-            widget = new ActionButton(this, name, text);
-            break;
-          case WIDGET_TEXTCTRL:
-            PyObject *pInput = PyTuple_GetItem(pTuple, 4);
-            long ld = PyLong_AsLong(pInput);
-            ActionInputType inputType = static_cast<ActionInputType>(ld);
-            widget = new ActionTextCtrl(this, name, text, inputType);
-            break;
+        if(cmd == COMMAND_PRINT) {
+            PyObject *pValue = PyTuple_GetItem(pTuple, 1);
+            char *cstr = PyString_AsString(pValue);
+            ConsoleLog(cstr);
         }
-        widget->addTo(actionBox);
+        else if(cmd == COMMAND_SET) {
+            PyObject *pName = PyTuple_GetItem(pTuple, 1);
+            PyObject *pValue = PyTuple_GetItem(pTuple, 2);
+            char *name = PyString_AsString(pName);
+            char *value = PyString_AsString(pValue);
+            SetAttribute(name, value);
+        }
+        else if(cmd == COMMAND_ADD_WIDGET) {
+            PyObject *pCls = PyTuple_GetItem(pTuple, 1);
+            PyObject *pName = PyTuple_GetItem(pTuple, 2);
+            PyObject *pText = PyTuple_GetItem(pTuple, 3);
+            WidgetType cls = static_cast<WidgetType>(PyLong_AsLong(pCls));
+            char *name = PyString_AsString(pName);
+            char *text = PyString_AsString(pText);
+            ActionWidget *widget;
+            switch(cls) {
+              case WIDGET_BUTTON:
+                widget = new ActionButton(this, name, text);
+                break;
+              case WIDGET_TEXTCTRL:
+                PyObject *pInput = PyTuple_GetItem(pTuple, 4);
+                long ld = PyLong_AsLong(pInput);
+                ActionInputType inputType = static_cast<ActionInputType>(ld);
+                widget = new ActionTextCtrl(this, name, text, inputType);
+                break;
+            }
+            widget->addTo(actionBox);
+        }
     }
 }
 
@@ -428,12 +479,12 @@ void RobotMonitorFrame::OnCommandButtonClick(wxCommandEvent& event)
     std::string s = CommandText->GetValue().ToStdString();
     char cstr[s.size() + 2];
     std::copy(s.begin(), s.end(), cstr);
-    cstr[s.size()] = '\n';
+    cstr[s.size()] = ' ';
     cstr[s.size() + 1] = '\0';
 
     PyObject *pArgs;
     pArgs = PyTuple_New(1);
-    PyObject *pValue = PyBytes_FromString(cstr);
+    PyObject *pValue = PyString_FromString(cstr);
     PyTuple_SetItem(pArgs, 0, pValue);
     PyObject_CallObject(pWrite, pArgs);
 

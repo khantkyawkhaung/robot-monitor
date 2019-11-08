@@ -18,6 +18,7 @@
 #include <wx/frame.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
+#include <wx/timer.h>
 //*)
 
 class RobotMonitorFrame: public wxFrame
@@ -29,7 +30,7 @@ class RobotMonitorFrame: public wxFrame
 
     private:
 
-        void OnIdle(wxIdleEvent& event);
+        void OnTimer(wxTimerEvent& event);
         void OnPortSelection(wxCommandEvent& event);
         void OnBaudrateSelection(wxCommandEvent& event);
         void OnConnect(wxCommandEvent& event);
