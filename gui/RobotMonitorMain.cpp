@@ -7,7 +7,8 @@
  * License:
  **************************************************************/
 
-#include "ActionWidget.h"
+#include "../process/attribute.h"
+#include "actionWidget.h"
 #include "RobotMonitorMain.h"
 #include <algorithm>
 #include <cstdio>
@@ -237,6 +238,7 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
 
     AttributeText->Enable(false);
     AttributeText->SetEditable(false);
+    attributeTable.setTextDisplayGUI(AttributeText);
     ConsoleText->SetEditable(false);
     actionBox = ActionBox;
     
@@ -310,11 +312,11 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
             strcpy(cstr, line.c_str());
             char *label = strtok(cstr, " ");
             if(strcmp(label, "WARNING:") == 0)
-                ConsoleText->SetDefaultStyle(wxTextAttr(*wxYELLOW));
+                ConsoleLog(line.c_str(), 1);
             else if(strcmp(label, "ERROR:") == 0)
-                ConsoleText->SetDefaultStyle(wxTextAttr(*wxRED));
-            ConsoleText->AppendText(wxString(line));
-            ConsoleText->SetDefaultStyle(wxTextAttr(*wxBLACK));
+                ConsoleLog(line.c_str(), 2);
+            else
+                ConsoleLog(line.c_str());
         }
         logfile.close();
     }
@@ -378,7 +380,7 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
     if(b) {
         if(connected == false) {
             AttributeText->Enable(true);
-            ClearAttributes();
+            attributeTable.clear();
             ConsoleText->Clear();
             actionBox->Clear();
         }
@@ -407,11 +409,33 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
             ConsoleLog(cstr);
         }
         else if(cmd == COMMAND_SET) {
-            PyObject *pName = PyTuple_GetItem(pTuple, 1);
-            PyObject *pValue = PyTuple_GetItem(pTuple, 2);
-            char *name = PyString_AsString(pName);
-            char *value = PyString_AsString(pValue);
-            SetAttribute(name, value);
+            Py_ssize_t tupleSize = PyTuple_Size(pTuple);
+            if(tupleSize == 2) {
+                PyObject *pName = PyTuple_GetItem(pTuple, 1);
+                PyObject *pValue = PyTuple_GetItem(pTuple, 2);
+                char *name = PyString_AsString(pName);
+                char *value = PyString_AsString(pValue);
+                attributeTable.addAttribute(name, value);
+            }
+            else if(tupleSize > 2) {
+                PyObject *pName = PyTuple_GetItem(pTuple, 1);
+                PyObject *pValue = PyTuple_GetItem(pTuple, 2);
+                char *name = PyString_AsString(pName);
+                char *value = PyString_AsString(pValue);
+                AttributeType type = ATTRIBUTE_STRING;
+                bool displayed = false;
+                if(tupleSize >= 3) {
+                    PyObject *pType = PyTuple_GetItem(pTuple, 3);
+                    type = static_cast<AttributeType>(PyLong_AsLong(pType));
+                }
+                if(tupleSize == 4) {
+                    PyObject *pDisplayed = PyTuple_GetItem(pTuple, 4);
+                    displayed = PyObject_IsTrue(pDisplayed);
+                }
+                attributeTable.addAttribute(
+                    new Attribute(name, value, type, displayed)
+                );
+            }
         }
         else if(cmd == COMMAND_ADD_WIDGET) {
             PyObject *pCls = PyTuple_GetItem(pTuple, 1);
@@ -428,7 +452,7 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
               case WIDGET_TEXTCTRL:
                 PyObject *pInput = PyTuple_GetItem(pTuple, 4);
                 long ld = PyLong_AsLong(pInput);
-                ActionInputType inputType = static_cast<ActionInputType>(ld);
+                AttributeType inputType = static_cast<AttributeType>(ld);
                 widget = new ActionTextCtrl(this, name, text, inputType);
                 break;
             }
@@ -437,40 +461,19 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
     }
 }
 
-void RobotMonitorFrame::ConsoleLog(const char *str) {
-    ConsoleText->AppendText(wxString::FromUTF8(str));
-}
-
-
-static std::vector<std::pair<std::string, std::string>> attributes;
-
-void RobotMonitorFrame::SetAttribute(const char *name, const char *str) {
-    std::string n = name;
-    bool match = false;
-    for(auto it = attributes.begin(); it != attributes.end(); it++) {
-        if(n.compare(it->first) == 0) {
-            it->second = str;
-            match = true;
-            break;
-        }
+void RobotMonitorFrame::ConsoleLog(const char *str, int err) {
+    if(err == 0)
+        ConsoleText->AppendText(wxString::FromUTF8(str));
+    if(err == 1) {
+        ConsoleText->SetDefaultStyle(wxTextAttr(*wxYELLOW));
+        ConsoleText->AppendText(wxString::FromUTF8(str));
+        ConsoleText->SetDefaultStyle(wxTextAttr(*wxBLACK));
     }
-    if(match == false) {
-        auto p = std::pair<std::string, std::string>(name, str);
-        attributes.push_back(p);
+    else if(err == 2) {
+        ConsoleText->SetDefaultStyle(wxTextAttr(*wxRED));
+        ConsoleText->AppendText(wxString::FromUTF8(str));
+        ConsoleText->SetDefaultStyle(wxTextAttr(*wxBLACK));
     }
-
-    AttributeText->Clear();
-    for(auto it = attributes.begin(); it != attributes.end(); it++) {
-        AttributeText->AppendText(wxString(it->first));
-        AttributeText->AppendText(wxString(" : "));
-        AttributeText->AppendText(wxString(it->second));
-        AttributeText->AppendText(wxString("\n"));
-    }
-}
-
-void RobotMonitorFrame::ClearAttributes() {
-    attributes.clear();
-    AttributeText->Clear();
 }
 
 

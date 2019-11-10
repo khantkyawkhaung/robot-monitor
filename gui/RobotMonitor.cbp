@@ -14,6 +14,7 @@
 				<Option projectLinkerOptionsRelation="2" />
 				<Compiler>
 					<Add option="-O2" />
+					<Add directory="include" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -29,12 +30,22 @@
 			<Add option="`wx-config --libs richtext`" />
 			<Add option="`wx-config --libs`" />
 		</Linker>
-		<Unit filename="ActionWidget.cpp" />
-		<Unit filename="ActionWidget.h" />
 		<Unit filename="RobotMonitorApp.cpp" />
 		<Unit filename="RobotMonitorApp.h" />
 		<Unit filename="RobotMonitorMain.cpp" />
 		<Unit filename="RobotMonitorMain.h" />
+		<Unit filename="actionWidget.cpp">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="actionWidget.h">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="port.cpp">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="port.h">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="wxsmith/RobotMonitorframe.wxs" />
 		<Extensions>
 			<envvars />

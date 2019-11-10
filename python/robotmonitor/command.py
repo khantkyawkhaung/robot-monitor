@@ -47,9 +47,9 @@ class WidgetClasses(IntEnum):
     SLIDER  = 3
 
 class InputType(IntEnum):
-    CHAR   = 0
-    INT    = 1
-    FLOAT  = 2
+    INT    = 0
+    FLOAT  = 1
+    CHAR   = 2
     STRING = 3
 
 

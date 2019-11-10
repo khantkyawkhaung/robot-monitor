@@ -1,6 +1,11 @@
 #ifndef ACTIONWIDGET_H_INCLUDED
 #define ACTIONWIDGET_H_INCLUDED
 
+/*
+ * Prepared widgets for customizable machine interface.
+ */
+
+#include "../process/attribute.h"
 #include <wx/button.h>
 #include <wx/control.h>
 #include <wx/sizer.h>
@@ -35,6 +40,9 @@ class ActionWidget {
 void setActionWidgetsEnabled(bool);
 
 
+/*
+ * The click event send a command to the client.
+ */
 class ActionButton: public ActionWidget,
                     public wxButton
 {
@@ -46,24 +54,20 @@ class ActionButton: public ActionWidget,
 };
 
 
-enum ActionInputType {
-    ACTION_INPUT_CHAR,
-    ACTION_INPUT_INT,
-    ACTION_INPUT_FLOAT,
-    ACTION_INPUT_STRING
-};
-
-
+/*
+ * A textbox with a label beside.
+ * Sends attribute update message on text change event.
+ */
 class ActionTextCtrl: public ActionWidget,
                       public wxTextCtrl
 {
   public:
-    ActionTextCtrl(wxWindow*, std::string, std::string, ActionInputType);
+    ActionTextCtrl(wxWindow*, std::string, std::string, AttributeType);
     void addTo(wxSizer*);
   private:
     wxBoxSizer *box;
     wxStaticText *label;
-    ActionInputType inputType;
+    AttributeType inputType;
     void onUpdate(wxCommandEvent&);
 
     friend void setActionWidgetsEnabled(bool);

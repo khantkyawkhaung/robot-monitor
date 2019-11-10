@@ -1,0 +1,7 @@
+data
+debian
+doc
+gui/bin
+gui/obj
+python/robotmonitor/*.pyc
+robotmonitor.o

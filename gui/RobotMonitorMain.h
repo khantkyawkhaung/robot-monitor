@@ -34,9 +34,7 @@ class RobotMonitorFrame: public wxFrame
         void OnPortSelection(wxCommandEvent& event);
         void OnBaudrateSelection(wxCommandEvent& event);
         void OnConnect(wxCommandEvent& event);
-        void ConsoleLog(const char *str);
-        void SetAttribute(const char *name, const char *str);
-        void ClearAttributes();
+        void ConsoleLog(const char *str, int err=0);
 
         wxMenu *MenuTools;
         wxMenu *MenuPorts;
