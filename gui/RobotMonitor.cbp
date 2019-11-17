@@ -40,6 +40,12 @@
 		<Unit filename="actionWidget.h">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="logging.cpp">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="logging.h">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="port.cpp">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>

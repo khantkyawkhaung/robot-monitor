@@ -60,9 +60,27 @@ def processCommand(s):
     tokens = splitCommandArgs(s)
     cmd = tokens[0]
     args = tokens[1:]
-    if cmd == "set":
+    
+    if cmd == "reset":
+        ret = (Commands.RESET.value, )
+    
+    elif cmd == "set":
         if len(args) == 2:
             ret = (Commands.SET.value, args[0], args[1])
+        elif len(args) > 2:
+            t = int(args[2])
+            if t >= 0 and t <= 3:
+                if len(args) == 3:
+                    ret = (Commands.SET.value, args[0], args[1], t)
+                else:
+                    ret = (
+                        Commands.SET.value,
+                        args[0],
+                        args[1],
+                        t,
+                        bool(args[3])
+                    )
+    
     elif cmd == "add-widget":
         if len(args) >= 3:
             cls = -1
@@ -72,15 +90,11 @@ def processCommand(s):
                        cls, args[1], args[2])
             elif args[0] == "textctrl":
                 cls = WidgetClasses.TEXTCTRL.value
-                t = -1
-                if args[3] == "int":
-                    t = InputType.INT.value
-                elif args[3] == "float":
-                    t = InputType.FLOAT.value
-                elif args[3] == "string":
-                    t = InputType.STRING.value
-                
-                if t != -1:
+                try:
+                    t = int(args[3])
+                except Exception:
+                    return ret
+                if t >= 0 and t <= 3:
                     ret = (Commands.ADD_WIDGET.value,
                            cls, args[1], args[2], t)
             elif args[0] == "slider":

@@ -42,6 +42,9 @@ def connect(p, b):
     except SerialException as e:
         robotmonitor.logging.log(str(e), ErrorLevel.FATAL)
 
+def disconnect():
+    ser.close()
+
 def isConnected():
     return ser.is_open
 

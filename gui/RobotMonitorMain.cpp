@@ -9,6 +9,7 @@
 
 #include "../process/attribute.h"
 #include "actionWidget.h"
+#include "logging.h"
 #include "RobotMonitorMain.h"
 #include <algorithm>
 #include <cstdio>
@@ -21,6 +22,8 @@
 #include <wx/msgdlg.h>
 
 
+ActionWidgetTable actionWidgetTable(NULL, NULL);
+
 #include <Python.h>
 
 #define LOGFILE_PATH "data/python_log"
@@ -30,7 +33,8 @@ extern char pwd[];
 
 PyObject *pName1, *pModule1, *pDict1;
 PyObject *pName2, *pModule2, *pDict2;
-PyObject *pGetCommand, *pWrite, *pListPorts, *pConnect, *pIsConnected;
+PyObject *pGetCommand, *pWrite, *pListPorts, *pConnect, *pDisconnect,
+         *pIsConnected;
 
 void pyClean() {
     Py_Finalize();
@@ -65,6 +69,7 @@ void pyInit() {
     pWrite = PyDict_GetItemString(pDict2, "write");
     pListPorts = PyDict_GetItemString(pDict2, "listPorts");
     pConnect = PyDict_GetItemString(pDict2, "connect");
+    pDisconnect = PyDict_GetItemString(pDict2, "disconnect");
     pIsConnected = PyDict_GetItemString(pDict2, "isConnected");
     
     atexit(pyClean);
@@ -236,15 +241,17 @@ RobotMonitorFrame::RobotMonitorFrame(wxWindow* parent,wxWindowID id)
     Connect(idMenuConnect, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(RobotMonitorFrame::OnConnect));
 
+    ConsoleText->SetEditable(false);
+    logger.setTextDisplayGUI(ConsoleText);
     AttributeText->Enable(false);
     AttributeText->SetEditable(false);
     attributeTable.setTextDisplayGUI(AttributeText);
-    ConsoleText->SetEditable(false);
-    actionBox = ActionBox;
+    actionWidgetTable = ActionWidgetTable(this, ActionBox);
+    
     
     pyInit();
 
-    wxTimer *timer = new wxTimer(this);
+    wxTimer *timer = new wxTimer(this, wxNewId());
     Connect(wxID_ANY, wxEVT_TIMER,
             wxTimerEventHandler(RobotMonitorFrame::OnTimer));
     timer->Start(10);
@@ -275,6 +282,11 @@ void RobotMonitorFrame::OnBaudrateSelection(wxCommandEvent& event) {
 }
 
 void RobotMonitorFrame::OnConnect(wxCommandEvent& event) {
+    if(connected) {
+        PyObject_CallObject(pDisconnect, NULL);
+        return;
+    }
+    
     PyObject *pArgs;
     pArgs = PyTuple_New(2);
     PyObject *pPort = PyString_FromString(port.c_str());
@@ -300,6 +312,7 @@ enum MonitorCommand {
 
 
 void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
+    Update();
     // Read log
     std::ifstream logfile(logfile_path);
     if(logfile.is_open()) {
@@ -379,16 +392,18 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
     bool b = PyObject_IsTrue(pConnected);
     if(b) {
         if(connected == false) {
+            MenuTools->SetLabel(idMenuConnect, _("Disconnect"));
             AttributeText->Enable(true);
-            attributeTable.clear();
             ConsoleText->Clear();
-            actionBox->Clear();
+            attributeTable.clear();
+            actionWidgetTable.clear();
         }
     }
     else {
         if(connected == true) {
+            MenuTools->SetLabel(idMenuConnect, _("Connect"));
             AttributeText->Enable(false);
-            setActionWidgetsEnabled(false);
+            actionWidgetTable.setEnable(false);
         }
     }
     connected = b;
@@ -408,6 +423,11 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
             char *cstr = PyString_AsString(pValue);
             ConsoleLog(cstr);
         }
+        else if(cmd == COMMAND_RESET) {
+            ConsoleText->Clear();
+            attributeTable.clear();
+            actionWidgetTable.clear();
+        }
         else if(cmd == COMMAND_SET) {
             Py_ssize_t tupleSize = PyTuple_Size(pTuple);
             if(tupleSize == 2) {
@@ -417,18 +437,18 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
                 char *value = PyString_AsString(pValue);
                 attributeTable.addAttribute(name, value);
             }
-            else if(tupleSize > 2) {
+            else if(tupleSize > 3) {
                 PyObject *pName = PyTuple_GetItem(pTuple, 1);
                 PyObject *pValue = PyTuple_GetItem(pTuple, 2);
                 char *name = PyString_AsString(pName);
                 char *value = PyString_AsString(pValue);
                 AttributeType type = ATTRIBUTE_STRING;
                 bool displayed = false;
-                if(tupleSize >= 3) {
+                if(tupleSize >= 4) {
                     PyObject *pType = PyTuple_GetItem(pTuple, 3);
                     type = static_cast<AttributeType>(PyLong_AsLong(pType));
                 }
-                if(tupleSize == 4) {
+                if(tupleSize == 5) {
                     PyObject *pDisplayed = PyTuple_GetItem(pTuple, 4);
                     displayed = PyObject_IsTrue(pDisplayed);
                 }
@@ -456,9 +476,11 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
                 widget = new ActionTextCtrl(this, name, text, inputType);
                 break;
             }
-            widget->addTo(actionBox);
+            actionWidgetTable.addWidget(widget);
         }
     }
+    
+    attributeTable.flush();
 }
 
 void RobotMonitorFrame::ConsoleLog(const char *str, int err) {

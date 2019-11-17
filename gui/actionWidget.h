@@ -6,13 +6,13 @@
  */
 
 #include "../process/attribute.h"
+#include <string>
 #include <wx/button.h>
 #include <wx/control.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 #include <wx/window.h>
-#include <string>
 
 
 enum WidgetType {
@@ -22,22 +22,20 @@ enum WidgetType {
     WIDGET_SLIDER
 };
 
+class ActionWidgetTable;
 
-class ActionWidget;
-extern wxStaticBoxSizer* actionBox;
 
 class ActionWidget {
   public:
-    ActionWidget(wxWindow*, std::string);
+    ActionWidget(std::string);
+    virtual void setEnable(bool);
     virtual void addTo(wxSizer*);
-    WidgetType widgetType = WIDGET_DEFAULT;
   protected:
-    wxWindow *parent;
     std::string name;
     int id;
+    
+    friend class ActionWidgetTable;
 };
-
-void setActionWidgetsEnabled(bool);
 
 
 /*
@@ -48,7 +46,8 @@ class ActionButton: public ActionWidget,
 {
   public:
     ActionButton(wxWindow*, std::string, std::string);
-    void addTo(wxSizer*);
+    void setEnable(bool) override;
+    void addTo(wxSizer*) override;
   private:
     void onClick(wxCommandEvent&);
 };
@@ -63,15 +62,33 @@ class ActionTextCtrl: public ActionWidget,
 {
   public:
     ActionTextCtrl(wxWindow*, std::string, std::string, AttributeType);
-    void addTo(wxSizer*);
+    wxStaticText *getStaticText();
+    void setEnable(bool) override;
+    void addTo(wxSizer*) override;
   private:
     wxBoxSizer *box;
     wxStaticText *label;
     AttributeType inputType;
     void onUpdate(wxCommandEvent&);
-
-    friend void setActionWidgetsEnabled(bool);
 };
 
+
+/*
+ * The list containing the user-wanted widgets.
+ * Control using iterations.
+ *
+ * Note: The sizer should not contain any components.
+ */
+class ActionWidgetTable {
+  public:
+    ActionWidgetTable(wxWindow *win, wxSizer *sizer);
+    void setEnable(bool);
+    void addWidget(ActionWidget*);
+    ActionWidget *getWidget(int i);
+    void clear();
+  private:
+    wxWindow *parent;
+    wxSizer *box;
+};
 
 #endif // ACTIONWIDGET_H_INCLUDED

@@ -205,24 +205,23 @@ void AttributeTable::addAttribute(std::string name, std::string value) {
  * insertion is saved so that the list is kept sorted.
  */
 Attribute *AttributeTable::getAttribute(std::string name) {
-    auto size = attributes.size();
-    searchedPosition = attributes.begin() + size / 2;
-    while(size > 1) {
+    if(attributes.size() == 0) {
+        searchedPosition = attributes.begin();
+        return NULL;
+    }
+    auto l = attributes.begin();
+    auto r = attributes.end()-1;
+    while(l <= r) {
+        searchedPosition = l + (r-l)/2;
         if(name == (*searchedPosition)->getName())
             return *searchedPosition;
-        else if(name > (*searchedPosition)->getName()) {
-            size /= 2;
-            searchedPosition += size / 2;
-        }
-        else {
-            size /= 2;
-            searchedPosition -= size / 2;
-        }
+        else if(name > (*searchedPosition)->getName())
+            l = searchedPosition + 1;
+        else
+            r = searchedPosition - 1;
     }
-    if(searchedPosition != attributes.end()) {
-        if(name > (*searchedPosition)->getName())
-            searchedPosition++;
-    }
+    if(name > (*searchedPosition)->getName())
+        ++searchedPosition;
     return NULL;
 }
 

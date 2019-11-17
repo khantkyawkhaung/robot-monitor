@@ -1,5 +1,5 @@
-CFLAGS = `wx-config --cxxflags`
 CC = g++
+CFLAGS = `wx-config --cxxflags`
 
 INCLUDES = `python-config --includes`
 
@@ -8,18 +8,22 @@ LIBS = \
 	`python-config --ldflags`
 
 SRCS = \
-	process/attribute.cpp \
 	gui/actionWidget.cpp \
+	gui/logging.cpp \
 	gui/port.cpp \
 	gui/RobotMonitorApp.cpp \
-	gui/RobotMonitorMain.cpp
+	gui/RobotMonitorMain.cpp \
+	process/attribute.cpp
 
 robotmonitor:
-	@ echo Compiling C++
+	@ echo [34mCompiling C++[0m
 	@ $(CC) $(CFLAGS) $(INCLUDES) -o $@.o $(SRCS) $(LIBS)
-	@ echo Compilation success
+	@ echo [34mCompilation success[0m
+
+run: robotmonitor.o
+	@ ./$<
 
 clean:
-	$(RM) robotmonitor.o
-	$(RM) -r data
+	@ $(RM) robotmonitor.o
+	@ $(RM) -r data
 
