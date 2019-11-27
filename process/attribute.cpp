@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 // Python function from robotmonitor.port module
-//extern PyObject *pWrite;
+extern PyObject *pWrite;
 
 
 Attribute::Attribute(std::string n, std::string v,
@@ -76,8 +76,12 @@ void Attribute::setValue(std::string s) {
             float f = stof(s);
             value = std::to_string(f);
         }
-        else if(type == ATTRIBUTE_CHAR)
-            value = std::string(1, s[0]);
+        else if(type == ATTRIBUTE_CHAR) {
+            if(s.size() > 0)
+                value = std::string(1, s[0]);
+            else
+                throw std::logic_error("Length error");
+        }
         else
             value = s;
         valid = true;
@@ -154,8 +158,9 @@ void Attribute::sendToClient() {
     pArgs = PyTuple_New(1);
     PyObject *pValue = PyString_FromString(cstr);
     PyTuple_SetItem(pArgs, 0, pValue);
-    //PyObject_CallObject(pWrite, pArgs);
+    PyObject_CallObject(pWrite, pArgs);
 }
+
 
 
 AttributeTable::AttributeTable(wxTextCtrl *txt) {

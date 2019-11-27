@@ -68,7 +68,11 @@ def processCommand(s):
         if len(args) == 2:
             ret = (Commands.SET.value, args[0], args[1])
         elif len(args) > 2:
-            t = int(args[2])
+            t = -1
+            try:
+                t = int(args[2])
+            except Exception as e:
+                pass
             if t >= 0 and t <= 3:
                 if len(args) == 3:
                     ret = (Commands.SET.value, args[0], args[1], t)

@@ -430,7 +430,7 @@ void RobotMonitorFrame::OnTimer(wxTimerEvent& event) {
         }
         else if(cmd == COMMAND_SET) {
             Py_ssize_t tupleSize = PyTuple_Size(pTuple);
-            if(tupleSize == 2) {
+            if(tupleSize == 3) {
                 PyObject *pName = PyTuple_GetItem(pTuple, 1);
                 PyObject *pValue = PyTuple_GetItem(pTuple, 2);
                 char *name = PyString_AsString(pName);
@@ -504,7 +504,7 @@ void RobotMonitorFrame::OnCommandButtonClick(wxCommandEvent& event)
     std::string s = CommandText->GetValue().ToStdString();
     char cstr[s.size() + 2];
     std::copy(s.begin(), s.end(), cstr);
-    cstr[s.size()] = ' ';
+    cstr[s.size()] = '\n';
     cstr[s.size() + 1] = '\0';
 
     PyObject *pArgs;
