@@ -10,7 +10,6 @@ LIBS = \
 SRCS = \
 	gui/actionWidget.cpp \
 	gui/logging.cpp \
-	gui/port.cpp \
 	gui/RobotMonitorApp.cpp \
 	gui/RobotMonitorMain.cpp \
 	process/attribute.cpp
